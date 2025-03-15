@@ -22,7 +22,7 @@ Below is an example of how to use fastdotcom2 in your Python code:
 import fastdotcom2
 
 # Run the speed test with default parameters
-result = fastdotcom2.fast_com2(verbose=True)
+result = fastdotcom2.fast_com2(verbose=False, maxtime=10)
 print(result)
 ```
 
