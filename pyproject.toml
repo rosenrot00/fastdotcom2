@@ -1,8 +1,9 @@
 [project]
 name = "fastdotcom2"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
-  "icmplib>=3.0.4","requests>=2.32.3"
+  "icmplib>=3.0.4",
+  "requests>=2.32.3"
 ]
 authors = [
   { name = "rosenrot" }
@@ -15,3 +16,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 license = { text = "MIT" }
+
+[project.urls]
+Homepage = "https://github.com/rosenrot00/fastdotcom2"
+Issues = "https://github.com/rosenrot00/fastdotcom2/issues"
