@@ -1,6 +1,8 @@
 import os
 import json
-import urllib.request, urllib.parse, urllib.error
+import urllib.request
+import urllib.parse
+import urllib.error
 import time
 from threading import Thread, Event
 import socket
@@ -13,6 +15,7 @@ import requests
 # Global event to mark when the download has started (i.e. first payload received)
 download_started = Event()
 
+
 # ------------------------------
 # Helper Classes and Functions
 # ------------------------------
@@ -21,7 +24,7 @@ class ProgressReader:
     """
     A file-like object that wraps a bytes payload and tracks its read progress.
     """
-    def __init__(self, data, chunk_size=64*1024):
+    def __init__(self, data, chunk_size=64 * 1024):
         self.data = data
         self.chunk_size = chunk_size
         self.offset = 0
@@ -32,13 +35,14 @@ class ProgressReader:
         if amt is None:
             amt = self.chunk_size
         if self.offset >= self.total:
-            return b''
-        chunk = self.data[self.offset:self.offset+amt]
+            return b""
+        chunk = self.data[self.offset : self.offset + amt]
         self.offset += amt
         self.read_bytes += len(chunk)
         return chunk
 
-def gethtmlresult(url, result, index):
+
+def get_html_result(url, result, index):
     """
     Download helper: Reads data from the URL in fixed-size chunks and updates result[index].
     """
@@ -48,64 +52,68 @@ def gethtmlresult(url, result, index):
         result[index] = 0
         return
 
-    CHUNK = 100 * 1024
+    chunk_size = 100 * 1024
     i = 1
     while True:
-        chunk = req.read(CHUNK)
+        chunk = req.read(chunk_size)
         if not chunk:
             break
-        result[index] = i * CHUNK
+        result[index] = i * chunk_size
         i += 1
 
-def application_bytes_to_networkbits(num_bytes):
+
+def application_bytes_to_network_bits(num_bytes):
     return num_bytes * 8 * 1.0415
 
-def findipv4(fqdn):
+
+def find_ipv4(fqdn):
     ipv4 = socket.getaddrinfo(fqdn, 80, socket.AF_INET)[0][4][0]
     return ipv4
 
-def findipv6(fqdn):
+
+def find_ipv6(fqdn):
     ipv6 = socket.getaddrinfo(fqdn, 80, socket.AF_INET6)[0][4][0]
     return ipv6
 
-def initiate(verbose=False):
+
+def get_fast_token(verbose=False):
     """
     Fetch the fast.com homepage, parse the JavaScript URL, and extract the token.
     Returns the token string or None if there was an error.
     """
-    url = 'https://fast.com/'
+    url = "https://fast.com/"
     try:
-        urlresult = urllib.request.urlopen(url)
+        url_result = urllib.request.urlopen(url)
     except Exception as e:
         if verbose:
             print("Error connecting to fast.com:", e)
         return None
 
-    response = urlresult.read().decode().strip()
-    jsname = None
-    for line in response.split('\n'):
-        if 'script src' in line:
-            jsname = line.split('"')[1]
+    response = url_result.read().decode().strip()
+    js_name = None
+    for line in response.split("\n"):
+        if "script src" in line:
+            js_name = line.split('"')[1]
             break
-    if not jsname:
+    if not js_name:
         if verbose:
             print("Could not find the JavaScript filename.")
         return None
 
-    token_url = 'https://fast.com' + jsname
+    token_url = "https://fast.com" + js_name
     if verbose:
         print("JavaScript URL is", token_url)
     try:
-        urlresult = urllib.request.urlopen(token_url)
+        url_result = urllib.request.urlopen(token_url)
     except Exception as e:
         if verbose:
             print("Error fetching JavaScript file:", e)
         return None
 
-    js_content = urlresult.read().decode().strip()
+    js_content = url_result.read().decode().strip()
     token = None
-    for part in js_content.split(','):
-        if 'token:' in part:
+    for part in js_content.split(","):
+        if "token:" in part:
             if verbose:
                 print("Found JS part:", part)
             token = part.split('"')[1]
@@ -116,12 +124,22 @@ def initiate(verbose=False):
         print("Token not found in JavaScript file.")
     return token
 
+
 # -----------------------------
 # Download Test Functions
 # -----------------------------
 
-def download(token, verbose=False, min_time=5, max_time=15, forceipv4=False, forceipv6=False,
-             window_size=3, connections_min=1, connections_max=8):
+def download_test(
+    token,
+    verbose=False,
+    min_time=5,
+    max_time=15,
+    force_ipv4=False,
+    force_ipv6=False,
+    window_size=3,
+    connections_min=1,
+    connections_max=8,
+):
     """
     Multi-threaded download test that dynamically manages parallel connections.
     
@@ -133,26 +151,26 @@ def download(token, verbose=False, min_time=5, max_time=15, forceipv4=False, for
             print("No token provided. Aborting download.")
         return 0
 
-    baseurl = 'https://api.fast.com/'
-    if forceipv4:
-        ipv4 = findipv4('api.fast.com')
-        baseurl = 'http://' + ipv4 + '/'
-    elif forceipv6:
-        ipv6 = findipv6('api.fast.com')
-        baseurl = 'http://[' + ipv6 + ']/'
-    api_url = baseurl + 'netflix/speedtest?https=true&token=' + token + '&urlCount=3'
+    base_url = "https://api.fast.com/"
+    if force_ipv4:
+        ipv4 = find_ipv4("api.fast.com")
+        base_url = "http://" + ipv4 + "/"
+    elif force_ipv6:
+        ipv6 = find_ipv6("api.fast.com")
+        base_url = "http://[" + ipv6 + "]/"
+    api_url = base_url + "netflix/speedtest?https=true&token=" + token + "&urlCount=3"
     if verbose:
         print("API URL is", api_url)
     try:
-        urlresult = urllib.request.urlopen(api_url, None, 2)
+        url_result = urllib.request.urlopen(api_url, None, 2)
     except Exception as e:
         if verbose:
             print("Error connecting to API:", e)
         return 0
 
-    jsonresult = urlresult.read().decode().strip()
-    parsedjson = json.loads(jsonresult)
-    urls = [item['url'] for item in parsedjson]
+    json_result = url_result.read().decode().strip()
+    parsed_json = json.loads(json_result)
+    urls = [item["url"] for item in parsed_json]
     if verbose:
         print("Retrieved URLs:")
         for url in urls:
@@ -168,7 +186,7 @@ def download(token, verbose=False, min_time=5, max_time=15, forceipv4=False, for
         results.append(0)
         url = urls[next_url_index]
         next_url_index = (next_url_index + 1) % len(urls)
-        t = Thread(target=gethtmlresult, args=(url, results, idx))
+        t = Thread(target=get_html_result, args=(url, results, idx))
         t.daemon = True
         t.start()
         active_threads.append((t, idx))
@@ -181,7 +199,7 @@ def download(token, verbose=False, min_time=5, max_time=15, forceipv4=False, for
     snapshots = []
     last_total = 0
     last_snapshot_time = time.perf_counter()
-    highestspeed_bps = 0
+    highest_speed_bps = 0
 
     start_time = time.perf_counter()
     end_time = start_time + max_time
@@ -209,10 +227,13 @@ def download(token, verbose=False, min_time=5, max_time=15, forceipv4=False, for
                 total_bytes = sum(s["bytes"] for s in snapshots)
                 total_time = sum(s["time"] for s in snapshots)
                 avg_speed = (1000 * total_bytes * 8 / total_time) if total_time > 0 else 0
-                if avg_speed > highestspeed_bps:
-                    highestspeed_bps = avg_speed
+                if avg_speed > highest_speed_bps:
+                    highest_speed_bps = avg_speed
                 if verbose:
-                    print(f"Snapshot: {delta} bytes in {elapsed_ms:.0f} ms, avg speed: {avg_speed:.1f} bps")
+                    print(
+                        f"Snapshot: {delta} bytes in {elapsed_ms:.0f} ms, "
+                        f"avg speed: {avg_speed:.1f} bps"
+                    )
             last_total = total
             last_snapshot_time = current_time
 
@@ -228,14 +249,17 @@ def download(token, verbose=False, min_time=5, max_time=15, forceipv4=False, for
                 for _ in range(threads_to_spawn):
                     if len(active_threads) < connections_max:
                         spawn_thread()
-                        active_threads = [(t, idx) for t, idx in active_threads if t.is_alive()]
+                        active_threads = [
+                            (t, idx) for t, idx in active_threads if t.is_alive()
+                        ]
         if current_time >= end_time and (current_time - start_time) >= min_time:
             break
     time.sleep(0.2)
-    Mbps = highestspeed_bps / 1e6
+    mbps = highest_speed_bps / 1e6
     if verbose:
-        print(f"Highest moving average download speed: {round(Mbps)} Mbps")
-    return Mbps
+        print(f"Highest moving average download speed: {round(mbps)} Mbps")
+    return mbps
+
 
 # -----------------------------
 # Upload Test Functions
@@ -255,11 +279,21 @@ def upload_with_progress(url, progress_obj, start_time_container, result_contain
     end = time.perf_counter()
     result_container[0] = (progress_obj.read_bytes, end - start)
 
-def upload(token, verbose=False, min_time=5, max_time=15, 
-                forceipv4=False, forceipv6=False, window_size=3, 
-                connections_min=1, connections_max=8,
-                payload_size=10*1024*1024, max_payload_size=50*1024*1024,
-                adjust_threshold=1.0):
+
+def upload_test(
+    token,
+    verbose=False,
+    min_time=5,
+    max_time=15,
+    force_ipv4=False,
+    force_ipv6=False,
+    window_size=3,
+    connections_min=1,
+    connections_max=8,
+    payload_size=10 * 1024 * 1024,
+    max_payload_size=50 * 1024 * 1024,
+    adjust_threshold=1.0,
+):
     """
     Run an upload test that dynamically manages parallel connections and adjusts the payload size.
     
@@ -271,26 +305,26 @@ def upload(token, verbose=False, min_time=5, max_time=15,
             print("No token provided. Aborting upload test.")
         return 0
 
-    baseurl = 'https://api.fast.com/'
-    if forceipv4:
-        ipv4 = findipv4('api.fast.com')
-        baseurl = 'http://' + ipv4 + '/'
-    elif forceipv6:
-        ipv6 = findipv6('api.fast.com')
-        baseurl = 'http://[' + ipv6 + ']/'
-    api_url = baseurl + 'netflix/speedtest?https=true&token=' + token + '&urlCount=3'
+    base_url = "https://api.fast.com/"
+    if force_ipv4:
+        ipv4 = find_ipv4("api.fast.com")
+        base_url = "http://" + ipv4 + "/"
+    elif force_ipv6:
+        ipv6 = find_ipv6("api.fast.com")
+        base_url = "http://[" + ipv6 + "]/"
+    api_url = base_url + "netflix/speedtest?https=true&token=" + token + "&urlCount=3"
     if verbose:
         print("API URL is", api_url)
     try:
-        urlresult = urllib.request.urlopen(api_url, None, 2)
+        url_result = urllib.request.urlopen(api_url, None, 2)
     except Exception as e:
         if verbose:
             print("Error connecting to API:", e)
         return 0
 
-    jsonresult = urlresult.read().decode().strip()
-    parsedjson = json.loads(jsonresult)
-    urls = [item['url'] for item in parsedjson]
+    json_result = url_result.read().decode().strip()
+    parsed_json = json.loads(json_result)
+    urls = [item["url"] for item in parsed_json]
     if verbose:
         print("Retrieved upload test URLs:")
         for url in urls:
@@ -315,12 +349,18 @@ def upload(token, verbose=False, min_time=5, max_time=15,
         result_containers[idx] = [None]
         url_to_use = urls[next_url_index]
         next_url_index = (next_url_index + 1) % len(urls)
-        t = Thread(target=upload_with_progress, args=(url_to_use, pr, start_times[idx], result_containers[idx]))
+        t = Thread(
+            target=upload_with_progress,
+            args=(url_to_use, pr, start_times[idx], result_containers[idx]),
+        )
         t.daemon = True
         t.start()
         active_threads[idx] = t
         if verbose:
-            print(f"Spawned upload thread {idx} using URL: {url_to_use} with payload size: {request_size} bytes")
+            print(
+                f"Spawned upload thread {idx} using URL: {url_to_use} "
+                f"with payload size: {request_size} bytes"
+            )
 
     for _ in range(connections_min):
         spawn_upload_thread()
@@ -328,7 +368,7 @@ def upload(token, verbose=False, min_time=5, max_time=15,
     snapshots = []
     last_total = 0
     last_snapshot_time = time.perf_counter()
-    highestspeed_bps = 0
+    highest_speed_bps = 0
 
     overall_start_time = time.perf_counter()
     end_time = overall_start_time + max_time
@@ -360,10 +400,13 @@ def upload(token, verbose=False, min_time=5, max_time=15,
             total_bytes = sum(s["bytes"] for s in snapshots)
             total_time = sum(s["time"] for s in snapshots)
             avg_speed = (1000 * total_bytes * 8 / total_time) if total_time > 0 else 0
-            if avg_speed > highestspeed_bps:
-                highestspeed_bps = avg_speed
+            if avg_speed > highest_speed_bps:
+                highest_speed_bps = avg_speed
             if verbose:
-                print(f"Snapshot: {delta} bytes in {elapsed_ms:.0f} ms, avg speed: {avg_speed:.1f} bps")
+                print(
+                    f"Snapshot: {delta} bytes in {elapsed_ms:.0f} ms, "
+                    f"avg speed: {avg_speed:.1f} bps"
+                )
             if finished_times:
                 min_elapsed = min(finished_times)
                 if min_elapsed < adjust_threshold:
@@ -392,15 +435,16 @@ def upload(token, verbose=False, min_time=5, max_time=15,
         if current_time >= end_time and (current_time - overall_start_time) >= min_time:
             break
     time.sleep(0.2)
-    Mbps = highestspeed_bps / 1e6
+    mbps = highest_speed_bps / 1e6
     if verbose:
-        print(f"Highest moving average upload speed: {round(Mbps)} Mbps")
-    return Mbps
+        print(f"Highest moving average upload speed: {round(mbps)} Mbps")
+    return mbps
 
-def upload_js_comparable(token, verbose=False, maxtime=15, payload_chunk_size=64*1024):
+
+def upload_js_comparable_test(token, verbose=False, max_time=15, payload_chunk_size=64 * 1024):
     """
     An upload test that mimics JavaScript's behavior by using a persistent HTTP connection.
-    It streams random data (via a generator) for 'maxtime' seconds using chunked transfer encoding.
+    It streams random data (via a generator) for 'max_time' seconds using chunked transfer encoding.
     
     Returns:
         int: The upload speed in Mbps (rounded to 0 decimals).
@@ -410,27 +454,28 @@ def upload_js_comparable(token, verbose=False, maxtime=15, payload_chunk_size=64
             print("No token provided. Aborting JS-comparable upload test.")
         return 0
 
-    baseurl = 'https://api.fast.com/'
-    api_url = baseurl + 'netflix/speedtest?https=true&token=' + token + '&urlCount=3'
+    base_url = "https://api.fast.com/"
+    api_url = base_url + "netflix/speedtest?https=true&token=" + token + "&urlCount=3"
     try:
-        urlresult = urllib.request.urlopen(api_url, None, 2)
+        url_result = urllib.request.urlopen(api_url, None, 2)
     except Exception as e:
         if verbose:
             print("Error connecting to API for upload:", e)
         return 0
 
-    jsonresult = urlresult.read().decode().strip()
-    parsedjson = json.loads(jsonresult)
-    urls = [item['url'] for item in parsedjson]
+    json_result = url_result.read().decode().strip()
+    parsed_json = json.loads(json_result)
+    urls = [item["url"] for item in parsed_json]
     url_to_use = urls[0]
     if verbose:
         print("Using upload URL (JS-comparable):", url_to_use)
 
     start = time.perf_counter()
     total_bytes = 0
+
     def data_generator():
         nonlocal total_bytes
-        while time.perf_counter() - start < maxtime:
+        while time.perf_counter() - start < max_time:
             chunk = os.urandom(payload_chunk_size)
             total_bytes += len(chunk)
             yield chunk
@@ -438,25 +483,26 @@ def upload_js_comparable(token, verbose=False, maxtime=15, payload_chunk_size=64
     session = requests.Session()
     headers = {
         "Transfer-Encoding": "chunked",
-        "Content-Type": "application/octet-stream"
+        "Content-Type": "application/octet-stream",
     }
     try:
-        session.post(url_to_use, data=data_generator(), headers=headers, timeout=maxtime+5)
+        session.post(url_to_use, data=data_generator(), headers=headers, timeout=max_time + 5)
     except Exception as e:
         if verbose:
             print("JS-comparable upload error:", e)
         return 0
     elapsed = time.perf_counter() - start
     speed_bps = (total_bytes * 8) / elapsed
-    Mbps = speed_bps / 1e6
+    mbps = speed_bps / 1e6
     if verbose:
-        print(f"Uploaded {total_bytes} bytes in {round(elapsed)} s, speed: {round(Mbps)} Mbps")
-    return Mbps
+        print(f"Uploaded {total_bytes} bytes in {round(elapsed)} s, speed: {round(mbps)} Mbps")
+    return mbps
 
-def upload_js_comparable_dynamic(token, verbose=False, maxtime=15, candidate_sizes=None):
+
+def upload_js_comparable_dynamic_test(token, verbose=False, max_time=15, candidate_sizes=None):
     """
     Runs a JS-comparable upload test that cycles through different payload chunk sizes
-    repeatedly until the overall maxtime is reached, then returns the highest measured upload speed.
+    repeatedly until the overall max_time is reached, then returns the highest measured upload speed.
     
     Parameters:
         candidate_sizes: list of payload chunk sizes in bytes.
@@ -466,17 +512,17 @@ def upload_js_comparable_dynamic(token, verbose=False, maxtime=15, candidate_siz
         int: Highest upload speed in Mbps (rounded to 0 decimals).
     """
     if candidate_sizes is None:
-        candidate_sizes = [64*10240, 128*1024, 256*1024, 512*1024]
-    
+        candidate_sizes = [64 * 10240, 128 * 1024, 256 * 1024, 512 * 1024]
+
     best_speed = 0
     start_time = time.perf_counter()
-    # Cycle through candidate sizes until maxtime is reached.
-    while time.perf_counter() - start_time < maxtime:
+    # Cycle through candidate sizes until max_time is reached.
+    while time.perf_counter() - start_time < max_time:
         for size in candidate_sizes:
-            remaining = maxtime - (time.perf_counter() - start_time)
+            remaining = max_time - (time.perf_counter() - start_time)
             if remaining <= 0:
                 break
-            speed = upload_js_comparable(token, verbose=verbose, maxtime=remaining, payload_chunk_size=size)
+            speed = upload_js_comparable_test(token, verbose=verbose, max_time=remaining, payload_chunk_size=size)
             if verbose:
                 print(f"Payload size: {size} bytes -> Upload speed: {speed} Mbps")
             if speed > best_speed:
@@ -484,6 +530,7 @@ def upload_js_comparable_dynamic(token, verbose=False, maxtime=15, candidate_siz
     if verbose:
         print(f"Best upload speed measured: {best_speed} Mbps")
     return best_speed
+
 
 # -----------------------------
 # Ping Test Functions Using icmplib
@@ -502,7 +549,9 @@ def ping_test(host, count=5, timeout=2, verbose=False):
         if verbose:
             print("Insufficient privileges, falling back to unprivileged mode for ping")
         try:
-            response = asyncio.run(async_ping(host, count=count, timeout=timeout, privileged=False))
+            response = asyncio.run(
+                async_ping(host, count=count, timeout=timeout, privileged=False)
+            )
         except Exception as e:
             if verbose:
                 print("Ping error (unprivileged):", e)
@@ -517,6 +566,7 @@ def ping_test(host, count=5, timeout=2, verbose=False):
         print(f"ICMP ping to {host}: avg {round(avg_ms)} ms, individual: {[round(r) for r in times_ms]}")
     return avg_ms, times_ms
 
+
 def fast_com_ping_unloaded(token=None, verbose=False, count=5):
     """
     Measures unloaded ping using icmplib by extracting the hostname from a test URL.
@@ -526,25 +576,26 @@ def fast_com_ping_unloaded(token=None, verbose=False, count=5):
     If token retrieval fails, returns 0 for the average ping.
     """
     if token is None:
-        token = initiate(verbose=verbose)
+        token = get_fast_token(verbose=verbose)
     if not token:
         return 0, []
-    baseurl = 'https://api.fast.com/'
-    api_url = baseurl + 'netflix/speedtest?https=true&token=' + token + '&urlCount=3'
+    base_url = "https://api.fast.com/"
+    api_url = base_url + "netflix/speedtest?https=true&token=" + token + "&urlCount=3"
     try:
-        urlresult = urllib.request.urlopen(api_url, None, 2)
+        url_result = urllib.request.urlopen(api_url, None, 2)
     except Exception as e:
         if verbose:
             print("Error connecting to API for unloaded ping:", e)
         return 0, []
-    jsonresult = urlresult.read().decode().strip()
-    parsedjson = json.loads(jsonresult)
-    urls = [item['url'] for item in parsedjson]
+    json_result = url_result.read().decode().strip()
+    parsed_json = json.loads(json_result)
+    urls = [item["url"] for item in parsed_json]
     host = urlparse(urls[0]).hostname
     avg, times = ping_test(host, count=count, timeout=2, verbose=verbose)
     return avg, times
 
-def fast_com_download(token=None, verbose=False, maxtime=15, ping_count=5, ping_interval=1):
+
+def fast_com_download(token=None, verbose=False, max_time=15, ping_count=5, ping_interval=1):
     """
     Runs the multi-threaded download test and concurrently measures loaded ping using icmplib.
     The ping worker starts after the first payload is received and runs until the download test completes.
@@ -554,27 +605,28 @@ def fast_com_download(token=None, verbose=False, maxtime=15, ping_count=5, ping_
     If token retrieval fails, returns 0 for both download speed and ping.
     """
     if token is None:
-        token = initiate(verbose=verbose)
+        token = get_fast_token(verbose=verbose)
     if not token:
         return 0, 0, []
-    
-    baseurl = 'https://api.fast.com/'
-    api_url = baseurl + 'netflix/speedtest?https=true&token=' + token + '&urlCount=3'
+
+    base_url = "https://api.fast.com/"
+    api_url = base_url + "netflix/speedtest?https=true&token=" + token + "&urlCount=3"
     try:
-        urlresult = urllib.request.urlopen(api_url, None, 2)
+        url_result = urllib.request.urlopen(api_url, None, 2)
     except Exception as e:
         if verbose:
             print("Error connecting to API for download:", e)
         return 0, 0, []
-    jsonresult = urlresult.read().decode().strip()
-    parsedjson = json.loads(jsonresult)
-    urls = [item['url'] for item in parsedjson]
+    json_result = url_result.read().decode().strip()
+    parsed_json = json.loads(json_result)
+    urls = [item["url"] for item in parsed_json]
     host = urlparse(urls[0]).hostname
     if verbose:
         print("Using host for loaded ping (ICMP):", host)
-    
+
     ping_values = []
     stop_event = Event()
+
     def ping_worker():
         download_started.wait()
         while not stop_event.is_set():
@@ -582,27 +634,52 @@ def fast_com_download(token=None, verbose=False, maxtime=15, ping_count=5, ping_
             if avg is not None:
                 ping_values.append(avg)
             time.sleep(ping_interval)
-    
+
     ping_thread = Thread(target=ping_worker)
     ping_thread.daemon = True
     ping_thread.start()
-    
-    dl_speed = download(token, verbose=verbose, min_time=5, max_time=maxtime,
-                        forceipv4=False, forceipv6=False, window_size=3,
-                        connections_min=1, connections_max=8)
-    
+
+    dl_speed = download_test(
+        token,
+        verbose=verbose,
+        min_time=5,
+        max_time=max_time,
+        force_ipv4=False,
+        force_ipv6=False,
+        window_size=3,
+        connections_min=1,
+        connections_max=8,
+    )
+
     stop_event.set()
     ping_thread.join()
     overall_ping = sum(ping_values) / len(ping_values) if ping_values else 0
     return dl_speed, overall_ping, ping_values
 
+
 # -----------------------------
 # Convenience Functions
 # -----------------------------
 
-def fast_com2(verbose=False, maxtime=15, ping_count=5, forceipv4=False, forceipv6=False,
-              payload_size=10*1024*1024, max_payload_size=50*1024*1024):
-    token = initiate(verbose=verbose)
+def fast_com2_test():
+    result = {
+    "download_speed": 1.23,
+    "upload_speed": 4.56,
+    "ping_unloaded": 7.89,
+    "ping_loaded": 10.11,
+    }
+    return result
+
+def fast_com2(
+    verbose=False,
+    max_time=15,
+    ping_count=5,
+    force_ipv4=False,
+    force_ipv6=False,
+    payload_size=10 * 1024 * 1024,
+    max_payload_size=50 * 1024 * 1024,
+):
+    token = get_fast_token(verbose=verbose)
     if not token:
         return (
             "Failed to get token. All test values will be 0.\n"
@@ -612,48 +689,52 @@ def fast_com2(verbose=False, maxtime=15, ping_count=5, forceipv4=False, forceipv
             "Loaded Ping: 0 ms"
         )
 
-    avg_ping_unloaded, ping_unloaded_vals = fast_com_ping_unloaded(token=token, verbose=verbose, count=ping_count)
+    avg_ping_unloaded, ping_unloaded_vals = fast_com_ping_unloaded(
+        token=token, verbose=verbose, count=ping_count
+    )
     dl_speed_loaded, avg_ping_loaded, ping_loaded_vals = fast_com_download(
-        token=token, verbose=verbose, maxtime=maxtime, ping_count=ping_count, ping_interval=1
+        token=token, verbose=verbose, max_time=max_time, ping_count=ping_count, ping_interval=1
     )
-    upload_speed_dynamic = upload_js_comparable_dynamic(token=token, verbose=verbose, maxtime=maxtime)
+    upload_speed_dynamic = upload_js_comparable_dynamic_test(
+        token=token, verbose=verbose, max_time=max_time
+    )
 
-    # Format download and upload speeds as floats with 2 decimals.
-    # For pings, use integers.
-    result = (
-        f"Download Speed: {dl_speed_loaded:.2f} Mbps\n"
-        f"Upload Speed: {upload_speed_dynamic:.2f} Mbps\n"
-        f"Unloaded Ping: {int(round(avg_ping_unloaded))} ms\n"
-        f"Loaded Ping: {int(round(avg_ping_loaded))} ms"
-    )
+    result = {
+    "download_speed": dl_speed_loaded,
+    "upload_speed": upload_speed_dynamic,
+    "ping_unloaded": avg_ping_unloaded,
+    "ping_loaded": avg_ping_loaded,
+    }
     return result
 
 
 def main():
     print("Starting fast.com speed test...")
-    
-    # Fetch token only once
-    token = initiate(verbose=False)
+
+    token = get_fast_token(verbose=False)
     if not token:
         print("Failed to get token. All test values will be 0.")
         return
-    
+
     print("\nRunning unloaded ping test:")
-    avg_ping_unloaded, ping_unloaded_vals = fast_com_ping_unloaded(token=token, verbose=False, count=3)
+    avg_ping_unloaded, ping_unloaded_vals = fast_com_ping_unloaded(
+        token=token, verbose=False, count=3
+    )
     print("Unloaded Ping: {:d} ms".format(int(round(avg_ping_unloaded))))
-    
+
     print("\nRunning download test:")
     dl_speed_loaded, avg_ping_loaded, ping_loaded_vals = fast_com_download(
-        token=token, verbose=False, maxtime=10, ping_count=5, ping_interval=1
+        token=token, verbose=False, max_time=10, ping_count=5, ping_interval=1
     )
-    # Using {:.2f} for a float with 2 decimals, and :d for integer.
     print("Download test results: {:.2f} Mbps".format(dl_speed_loaded))
     print("Loaded Ping: {:d} ms".format(int(round(avg_ping_loaded))))
-    
+
     print("\nRunning upload test:")
-    upload_speed_dynamic = upload_js_comparable_dynamic(token=token, verbose=False, maxtime=10)
+    upload_speed_dynamic = upload_js_comparable_dynamic_test(
+        token=token, verbose=False, max_time=10
+    )
     print("Upload test result: {:.2f} Mbps".format(upload_speed_dynamic))
-    
+
     print("All tests completed.")
 
 
