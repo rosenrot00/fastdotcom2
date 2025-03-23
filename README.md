@@ -8,6 +8,8 @@ fastdotcom2 is a Python package that performs internet speed tests using [fast.c
 - **Upload Speed Test:** Measures the upload speed in Mbps.
 - **Ping Tests:** Measures the average unloaded and loaded ping in milliseconds.
 
+The measured values come rather close to the measurements taken on the website. If anyone has an idea of tweaking it even moren, feel free to get in contact.
+
 ## Installation
 
 Install fastdotcom2 from PyPI using pip:
