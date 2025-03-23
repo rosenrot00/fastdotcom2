@@ -665,8 +665,8 @@ def fast_com2_test():
     result = {
     "download_speed": 1.23,
     "upload_speed": 4.56,
-    "ping_unloaded": 7.89,
-    "ping_loaded": 10.11,
+    "unloaded_ping": 7.89,
+    "loaded_ping": 10.11,
     }
     return result
 
@@ -702,8 +702,8 @@ def fast_com2(
     result = {
     "download_speed": dl_speed_loaded,
     "upload_speed": upload_speed_dynamic,
-    "ping_unloaded": avg_ping_unloaded,
-    "ping_loaded": avg_ping_loaded,
+    "unloaded_ping": avg_ping_unloaded,
+    "loaded_ping": avg_ping_loaded,
     }
     return result
 
