@@ -32,7 +32,7 @@ print(result)
 
 When you run the example above, you might see output similar to:
 ```bash
-{'download_speed': 120.68, 'upload_speed': 25.93, 'ping_unloaded': 19.35, 'ping_loaded': 48.64}
+{'download_speed': 120.68, 'upload_speed': 25.93, 'unloaded_ping': 19.35, 'loaded_ping': 48.64}
 ```
 
 - **Download Speed:** Measured download speed in Mbps (displayed with two decimal places).
