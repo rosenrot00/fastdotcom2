@@ -22,7 +22,7 @@ Below is an example of how to use fastdotcom2 in your Python code:
 import fastdotcom2
 
 # Run the speed test with default parameters
-result = fastdotcom2.fast_com2(verbose=False, maxtime=10)
+result = fastdotcom2.fast_com2(verbose=False, max_time=10)
 print(result)
 ```
 
@@ -30,10 +30,7 @@ print(result)
 
 When you run the example above, you might see output similar to:
 ```bash
-Download Speed: 140.00 Mbps
-Upload Speed: 22.00 Mbps
-Unloaded Ping: 24 ms
-Loaded Ping: 59 ms
+{'download_speed': 120.68, 'upload_speed': 25.93, 'ping_unloaded': 19.35, 'ping_loaded': 48.64}
 ```
 
 - **Download Speed:** Measured download speed in Mbps (displayed with two decimal places).
