@@ -1,8 +1,8 @@
 [project]
 name = "fastdotcom2"
-version = "0.0.16"
+version = "0.0.19"
 dependencies = [
-  "icmplib>=3.0.4",
+  "icmplib>=3.0.0",
   "requests>=2.32.3"
 ]
 authors = [
